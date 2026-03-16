@@ -4,28 +4,20 @@ import { useState, useRef, useEffect, useCallback } from "react";
 let _uid = Date.now();
 const uid = () => String(++_uid);
 
-const DESK_TEMPLATES = [
-  { tid: "single", label: "Single Desk", w: 70, h: 50, seats: [{ rx: 0.5, ry: 1.0 }] },
-  { tid: "pair", label: "Pair", w: 120, h: 50, seats: [{ rx: 0.29, ry: 1.0 }, { rx: 0.71, ry: 1.0 }] },
-  { tid: "group4", label: "Group of 4", w: 120, h: 100, seats: [{ rx: 0.29, ry: 0.0 }, { rx: 0.71, ry: 0.0 }, { rx: 0.29, ry: 1.0 }, { rx: 0.71, ry: 1.0 }] },
-  { tid: "group6", label: "Group of 6", w: 180, h: 100, seats: [{ rx: 0.19, ry: 0.0 }, { rx: 0.5, ry: 0.0 }, { rx: 0.81, ry: 0.0 }, { rx: 0.19, ry: 1.0 }, { rx: 0.5, ry: 1.0 }, { rx: 0.81, ry: 1.0 }] },
-  { tid: "row3", label: "Row of 3", w: 180, h: 50, seats: [{ rx: 0.17, ry: 1.0 }, { rx: 0.5, ry: 1.0 }, { rx: 0.83, ry: 1.0 }] },
-];
+const C = {
+  bg: "#f4f4f4", panel: "#ffffff", canvas: "#fafafa",
+  desk: "#eeeeee", deskBorder: "#cccccc", deskSelected: "#fe5000",
+  seatEmpty: "#fff", seatBorder: "#aaa",
+  seatFilled: "#1a1a1a", seatIEP: "#fe5000", seatSep: "#8b5fbf",
+  friend: "#2e86c1", conflict: "#cb3b3b",
+  board: "#1a1a1a", boardTxt: "#ffffff",
+  accent: "#fe5000", accentBg: "#fff0e5",
+  danger: "#b83232", dangerBg: "#fceaea",
+  text: "#1a1a1a", muted: "#666666", subtle: "#bbbbbb",
+  border: "#dddddd", borderLight: "#eeeeee",
+};
 
 const PERIOD_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Homeroom", "Advisory", "A Block", "B Block", "C Block", "D Block", "E Block", "F Block", "G Block", "Custom"];
-
-const C = {
-  bg: "#eae6df", panel: "#ffffff", canvas: "#f6f5f2",
-  desk: "#cfc0a3", deskBorder: "#b5a484", deskSelected: "#3d6b50",
-  seatEmpty: "#fff", seatBorder: "#aaa",
-  seatFilled: "#4a7c59", seatIEP: "#c27a2a", seatSep: "#8b5fbf",
-  friend: "#2e86c1", conflict: "#cb3b3b",
-  board: "#2f4f3a", boardTxt: "#e8f0e8",
-  accent: "#3d6b50", accentBg: "#e2eedf",
-  danger: "#b83232", dangerBg: "#fceaea",
-  text: "#2a2a2a", muted: "#888", subtle: "#bbb",
-  border: "#ddd8ce", borderLight: "#eae6df",
-};
 
 const font = `'Source Serif 4', 'Georgia', serif`;
 const sansFont = `'DM Sans', 'Segoe UI', sans-serif`;
