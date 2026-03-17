@@ -17,6 +17,14 @@ const C = {
   border: "#dddddd", borderLight: "#eeeeee",
 };
 
+const DESK_TEMPLATES = [
+  { tid: "single", label: "Single Desk", w: 70, h: 50, seats: [{ rx: 0.5, ry: 1.0 }] },
+  { tid: "pair", label: "Pair", w: 120, h: 50, seats: [{ rx: 0.29, ry: 1.0 }, { rx: 0.71, ry: 1.0 }] },
+  { tid: "group4", label: "Group of 4", w: 120, h: 100, seats: [{ rx: 0.29, ry: 0.0 }, { rx: 0.71, ry: 0.0 }, { rx: 0.29, ry: 1.0 }, { rx: 0.71, ry: 1.0 }] },
+  { tid: "group6", label: "Group of 6", w: 180, h: 100, seats: [{ rx: 0.19, ry: 0.0 }, { rx: 0.5, ry: 0.0 }, { rx: 0.81, ry: 0.0 }, { rx: 0.19, ry: 1.0 }, { rx: 0.5, ry: 1.0 }, { rx: 0.81, ry: 1.0 }] },
+  { tid: "row3", label: "Row of 3", w: 180, h: 50, seats: [{ rx: 0.17, ry: 1.0 }, { rx: 0.5, ry: 1.0 }, { rx: 0.83, ry: 1.0 }] },
+];
+
 const PERIOD_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Homeroom", "Advisory", "A Block", "B Block", "C Block", "D Block", "E Block", "F Block", "G Block", "Custom"];
 
 const font = `'Source Serif 4', 'Georgia', serif`;
@@ -837,7 +845,7 @@ export default function SeatingChartApp() {
   const boardSt = {
     position: "absolute", background: C.board, color: C.boardTxt, display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: "11px", fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", zIndex: 5, borderRadius: "3px", fontFamily: sansFont,
-    ...(bp === "top" ? { top: 0, left: "12%", right: "12%", height: 28 } :
+    ...(bp === "top" ? { top: 60, left: "12%", right: "12%", height: 28 } :
       bp === "bottom" ? { bottom: 0, left: "12%", right: "12%", height: 28 } :
       bp === "left" ? { left: 0, top: "12%", bottom: "12%", width: 28, writingMode: "vertical-rl" } :
       { right: 0, top: "12%", bottom: "12%", width: 28, writingMode: "vertical-rl" }),
