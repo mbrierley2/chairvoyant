@@ -33,8 +33,6 @@ const sansFont = `'DM Sans', 'Segoe UI', sans-serif`;
 /* ──────────────────────── STORAGE ──────────────────────── */
 const STORAGE_KEY = "seating-chart-data-v2";
 
-// Storage layer — uses Supabase if available, falls back to localStorage
-// Replace these with Supabase calls once you set up your backend (see SETUP-GUIDE.md)
 async function loadData(userId) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY + (userId ? `-${userId}` : ""));
@@ -74,7 +72,7 @@ export default function SeatingChartApp() {
   const [dragState, setDragState] = useState(null);
   const [placingStudentId, setPlacingStudentId] = useState(null);
   const [pickedUpFromKey, setPickedUpFromKey] = useState(null);
-  const [seatDrag, setSeatDrag] = useState(null); // { studentId, originKey, mouseX, mouseY }
+  const [seatDrag, setSeatDrag] = useState(null);
   const [relMode, setRelMode] = useState(null);
   const [relFirst, setRelFirst] = useState(null);
   const [editStudentId, setEditStudentId] = useState(null);
@@ -96,7 +94,7 @@ export default function SeatingChartApp() {
   const [copyFromClassId, setCopyFromClassId] = useState("");
   const canvasRef = useRef(null);
   const saveTimeout = useRef(null);
-  const [undoStack, setUndoStack] = useState([]); // stack of { classId, seatAssignments }
+  const [undoStack, setUndoStack] = useState([]);
 
   const pushUndo = () => {
     if (!activeClass) return;
@@ -109,7 +107,6 @@ export default function SeatingChartApp() {
     updateClass(last.classId, c => ({ ...c, seatAssignments: last.seatAssignments }));
   };
 
-  // Load on mount
   useEffect(() => {
     (async () => {
       const stored = await loadData();
@@ -118,7 +115,6 @@ export default function SeatingChartApp() {
     })();
   }, []);
 
-  // Auto-save on change
   const persist = useCallback((newData) => {
     setData(newData);
     clearTimeout(saveTimeout.current);
@@ -127,7 +123,7 @@ export default function SeatingChartApp() {
 
   if (loading || !data) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: sansFont, color: C.muted }}>
-      Loading your seating charts…
+      Loading Chairvoyant…
     </div>
   );
 
@@ -173,7 +169,6 @@ export default function SeatingChartApp() {
   };
   const deleteDesk = (deskId) => {
     updateActiveRoom(r => ({ ...r, desks: r.desks.filter(d => d.id !== deskId) }));
-    // Clear assignments for this desk across ALL classes using this room
     const newClasses = data.classes.map(c => {
       if (c.roomId !== activeRoom.id) return c;
       const sa = { ...c.seatAssignments };
@@ -185,15 +180,12 @@ export default function SeatingChartApp() {
   };
 
   /* ──── Seat interactions ──── */
-
-  // Click handler — for disable mode, relationship mode, and sidebar placing
   const handleSeatClick = (deskId, idx) => {
-    if (seatDrag) return; // ignore clicks during drag
+    if (seatDrag) return;
     const key = seatKey(deskId, idx);
     const current = assignments[key];
     const disabled = isSeatDisabled(deskId, idx);
 
-    // Disable seat mode: toggle this seat on/off
     if (disableSeatMode) {
       updateActiveRoom(r => ({
         ...r,
@@ -232,7 +224,6 @@ export default function SeatingChartApp() {
       return;
     }
 
-    // Sidebar placing
     if (placingStudentId) {
       pushUndo();
       const sa = { ...assignments };
@@ -245,14 +236,13 @@ export default function SeatingChartApp() {
     }
   };
 
-  // Mouse down on seat — start dragging a seated student
   const handleSeatMouseDown = (e, deskId, idx) => {
     if (disableSeatMode || relMode || placingStudentId) return;
     const disabled = isSeatDisabled(deskId, idx);
     if (disabled) return;
     const key = seatKey(deskId, idx);
     const current = assignments[key];
-    if (!current) return; // nothing to drag from empty seat
+    if (!current) return;
     e.stopPropagation();
     e.preventDefault();
     const rect = canvasRef.current.getBoundingClientRect();
@@ -264,7 +254,6 @@ export default function SeatingChartApp() {
     });
   };
 
-  // Mouse up on seat — drop student here
   const handleSeatMouseUp = (deskId, idx) => {
     if (!seatDrag) return;
     const disabled = isSeatDisabled(deskId, idx);
@@ -273,18 +262,16 @@ export default function SeatingChartApp() {
     const targetStudent = assignments[targetKey];
 
     if (targetKey === seatDrag.originKey) {
-      // Dropped on same seat — no-op
       setSeatDrag(null);
       return;
     }
 
     pushUndo();
     const sa = { ...assignments };
-    // Swap or move
     if (targetStudent) {
-      sa[seatDrag.originKey] = targetStudent; // swap target back to origin
+      sa[seatDrag.originKey] = targetStudent;
     } else {
-      delete sa[seatDrag.originKey]; // vacate origin
+      delete sa[seatDrag.originKey];
     }
     sa[targetKey] = seatDrag.studentId;
     updateActiveClass(c => ({ ...c, seatAssignments: sa }));
@@ -330,17 +317,17 @@ export default function SeatingChartApp() {
     });
     setEditStudentId(null);
   };
+
   /* ──── Smart auto-assign ──── */
   const smartAutoAssign = () => {
     if (!activeRoom || !activeClass) return;
     pushUndo();
     const bp = activeRoom.boardPosition || "top";
 
-    // 1) Compute each seat's world position (center of seat circle on canvas)
-    const seatInfos = []; // { key, worldX, worldY, deskId, idx, deskIndex }
+    const seatInfos = [];
     desks.forEach((desk, di) => {
       desk.seats.forEach((seat, idx) => {
-        if (desk.disabledSeats?.includes(idx)) return; // skip disabled
+        if (desk.disabledSeats?.includes(idx)) return;
         const sx = seat.rx * desk.w, sy = seat.ry * desk.h;
         const rad = (desk.rotation * Math.PI) / 180;
         const cx = desk.w / 2, cy = desk.h / 2;
@@ -351,50 +338,38 @@ export default function SeatingChartApp() {
       });
     });
 
-    // 2) Sort seats by distance to board side (front → back)
     const distToBoard = (s) => {
       if (bp === "top") return s.wy;
       if (bp === "bottom") return -s.wy;
       if (bp === "left") return s.wx;
-      return -s.wx; // right
+      return -s.wx;
     };
     seatInfos.sort((a, b) => distToBoard(a) - distToBoard(b));
 
-    // 3) Distance between two seat infos
     const seatDist = (a, b) => Math.sqrt((a.wx - b.wx) ** 2 + (a.wy - b.wy) ** 2);
     const sameDeskGroup = (a, b) => a.deskId === b.deskId;
 
-    // 4) Categorize students
     const needsFront = unassigned.filter(s => s.preferFront);
     const iepOther = unassigned.filter(s => s.iep && !s.preferFront);
     const regular = unassigned.filter(s => !s.iep && !s.preferFront);
-
-    // Ordered placement: preferential-front first, then other IEP, then regular
     const placementOrder = [...needsFront, ...iepOther, ...regular];
 
-    // 5) Build result assignments (start with existing)
     const sa = { ...assignments };
     const usedSeatKeys = new Set(Object.keys(sa));
-    const placedMap = {}; // studentId → seatInfo
+    const placedMap = {};
 
-    // Pre-populate placedMap with already-assigned students
     Object.entries(sa).forEach(([k, sid]) => {
       const info = seatInfos.find(si => si.key === k);
       if (info) placedMap[sid] = info;
     });
 
-    // 6) Score a candidate seat for a student (lower = better)
     const scoreSeat = (student, seatInfo) => {
       let score = 0;
-
-      // Prefer front seats for students with preferential front seating
       if (student.preferFront) {
         score += distToBoard(seatInfo) * 2;
       } else {
-        score += distToBoard(seatInfo) * 0.3; // mild preference toward front
+        score += distToBoard(seatInfo) * 0.3;
       }
-
-      // Penalty: friend on same desk group or very close → heavy penalty (we want them apart)
       student.friendIds.forEach(fid => {
         const friendSeat = placedMap[fid];
         if (friendSeat) {
@@ -405,8 +380,6 @@ export default function SeatingChartApp() {
           }
         }
       });
-
-      // Penalty: conflict student nearby → very heavy penalty
       student.conflictIds.forEach(cid => {
         const conflictSeat = placedMap[cid];
         if (conflictSeat) {
@@ -417,23 +390,18 @@ export default function SeatingChartApp() {
           }
         }
       });
-
       return score;
     };
 
-    // 7) Place each student in best available seat
     placementOrder.forEach(student => {
       const available = seatInfos.filter(si => !usedSeatKeys.has(si.key));
       if (available.length === 0) return;
-
       let bestSeat = available[0];
       let bestScore = scoreSeat(student, available[0]);
-
       for (let i = 1; i < available.length; i++) {
         const sc = scoreSeat(student, available[i]);
         if (sc < bestScore) { bestScore = sc; bestSeat = available[i]; }
       }
-
       sa[bestSeat.key] = student.id;
       usedSeatKeys.add(bestSeat.key);
       placedMap[student.id] = bestSeat;
@@ -455,7 +423,6 @@ export default function SeatingChartApp() {
     if (!activeRoom || !activeClass) return;
     const bp = activeRoom.boardPosition || "top";
 
-    // Build seat data for rendering
     const seatData = [];
     desks.forEach(desk => {
       desk.seats.forEach((seat, idx) => {
@@ -472,7 +439,6 @@ export default function SeatingChartApp() {
       });
     });
 
-    // Find canvas bounds
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     desks.forEach(d => {
       const pad = Math.max(d.w, d.h);
@@ -486,7 +452,6 @@ export default function SeatingChartApp() {
     if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
     const vw = maxX - minX + 60, vh = maxY - minY + 60;
 
-    // Build desk rects SVG
     const desksSvg = desks.map(d => {
       const cx = d.x + d.w / 2, cy = d.y + d.h / 2;
       return `<g transform="translate(${cx - minX + 30}, ${cy - minY + 30}) rotate(${d.rotation})">
@@ -494,7 +459,6 @@ export default function SeatingChartApp() {
       </g>`;
     }).join("\n");
 
-    // Build seat circles + names
     const seatsSvg = seatData.map(s => {
       const x = s.wx - minX + 30, y = s.wy - minY + 30;
       if (s.disabled) {
@@ -523,7 +487,6 @@ export default function SeatingChartApp() {
       </g>`;
     }).join("\n");
 
-    // Board line
     let boardSvg = "";
     const bw = vw, bh = vh;
     if (bp === "top") boardSvg = `<rect x="30" y="4" width="${bw - 60}" height="18" rx="3" fill="#2f4f3a"/><text x="${bw/2}" y="16" text-anchor="middle" font-size="9" font-weight="700" fill="#e8f0e8" font-family="sans-serif" letter-spacing="2">BOARD</text>`;
@@ -531,7 +494,6 @@ export default function SeatingChartApp() {
     else if (bp === "left") boardSvg = `<rect x="4" y="30" width="18" height="${bh - 60}" rx="3" fill="#2f4f3a"/><text x="13" y="${bh/2}" text-anchor="middle" font-size="9" font-weight="700" fill="#e8f0e8" font-family="sans-serif" letter-spacing="2" transform="rotate(-90, 13, ${bh/2})">BOARD</text>`;
     else boardSvg = `<rect x="${bw - 22}" y="30" width="18" height="${bh - 60}" rx="3" fill="#2f4f3a"/><text x="${bw - 13}" y="${bh/2}" text-anchor="middle" font-size="9" font-weight="700" fill="#e8f0e8" font-family="sans-serif" letter-spacing="2" transform="rotate(90, ${bw - 13}, ${bh/2})">BOARD</text>`;
 
-    // Relationship lines for print
     let relSvg = "";
     if (showRels) {
       relLines.forEach(l => {
@@ -543,7 +505,6 @@ export default function SeatingChartApp() {
       });
     }
 
-    // Roster table
     const rosterRows = [...students].sort(byLastName).map(st => {
       const seatLoc = Object.entries(assignments).find(([, sid]) => sid === st.id);
       let location = "Unassigned";
@@ -563,7 +524,6 @@ export default function SeatingChartApp() {
       </tr>`;
     }).join("\n");
 
-    // Separate setting list
     const sepList = separateStudents.length > 0
       ? `<div style="margin-top:20px;page-break-inside:avoid">
           <h3 style="font-size:14px;margin:0 0 6px;color:#8b5fbf">📋 Separate Setting — Send to Other Room</h3>
@@ -574,7 +534,7 @@ export default function SeatingChartApp() {
         </div>`
       : "";
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${activeClass.period} ${activeClass.name} — Seating Chart</title>
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${activeClass.period} ${activeClass.name} — Chairvoyant</title>
     <style>
       * { box-sizing: border-box; }
       @media print {
@@ -725,11 +685,7 @@ export default function SeatingChartApp() {
     if (!activeRoom) return;
     const curZoom = activeRoom.zoom || 1;
     const newZoom = Math.round((curZoom + delta) * 100) / 100;
-
-    // Don't zoom smaller than 0.4 or larger than 2
     if (newZoom < 0.4 || newZoom > 2) return;
-
-    // For zoom-in: check that no desk would be clipped at the new zoom
     if (delta > 0 && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       const canvasW = rect.width, canvasH = rect.height;
@@ -738,9 +694,8 @@ export default function SeatingChartApp() {
         const bottom = (d.y + d.h) * newZoom;
         return right > canvasW || bottom > canvasH;
       });
-      if (wouldClip) return; // don't zoom in further
+      if (wouldClip) return;
     }
-
     updateActiveRoom(r => ({ ...r, zoom: newZoom }));
   };
 
@@ -764,24 +719,18 @@ export default function SeatingChartApp() {
   /* ──── Desk drag ──── */
   const onDeskDown = (e, deskId) => {
     if (relMode) return;
-    if (lockLayout) return; // locked — no dragging or selecting
+    if (lockLayout) return;
     e.stopPropagation();
-
-    // Shift+click: toggle this desk in/out of selection, no drag
     if (e.shiftKey) {
       selectDesk(deskId, true);
       return;
     }
-
-    // Regular click on an unselected desk: select just this one
     let currentSelection = selectedDeskIds;
     if (!selectedDeskIds.has(deskId)) {
       const newSel = new Set([deskId]);
       setSelectedDeskIds(newSel);
       currentSelection = newSel;
     }
-
-    // Start drag for all currently selected desks
     const rect = canvasRef.current.getBoundingClientRect();
     const dragIds = currentSelection.has(deskId) ? currentSelection : new Set([deskId]);
     const startX = e.clientX - rect.left;
@@ -791,13 +740,11 @@ export default function SeatingChartApp() {
     setDragState({ deskId, startX, startY, origins, dragIds });
   };
   const onCanvasMove = (e) => {
-    // Seat drag — track mouse position
     if (seatDrag) {
       const rect = canvasRef.current.getBoundingClientRect();
       setSeatDrag(prev => ({ ...prev, mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top }));
       return;
     }
-    // Desk drag
     if (!dragState) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const z = activeRoom?.zoom || 1;
@@ -814,7 +761,7 @@ export default function SeatingChartApp() {
   };
   const onCanvasUp = () => {
     setDragState(null);
-    if (seatDrag) setSeatDrag(null); // cancel drag if released on empty space
+    if (seatDrag) setSeatDrag(null);
   };
 
   /* ──── Relationship lines ──── */
@@ -900,7 +847,7 @@ export default function SeatingChartApp() {
       {/* ─── TOP NAV ─── */}
       <div style={{ display: "flex", alignItems: "center", background: C.panel, borderBottom: `1px solid ${C.border}`, padding: "0 16px", height: 52, flexShrink: 0, gap: 12 }}>
         <div style={{ fontFamily: font, fontSize: 18, fontWeight: 700, color: C.accent, marginRight: 8, display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 22 }}>⊞</span> Seating Charts
+          <span style={{ fontSize: 22 }}>⊞</span> Chairvoyant
         </div>
         <div style={{ width: 1, height: 28, background: C.border }} />
 
@@ -931,7 +878,6 @@ export default function SeatingChartApp() {
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* ─── SIDEBAR ─── */}
         <div style={{ width: 250, minWidth: 250, background: C.panel, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Sidebar tabs */}
           <div style={{ display: "flex", padding: "6px 8px", gap: 4, borderBottom: `1px solid ${C.borderLight}` }}>
             {[["desks", "🪑 Desks"], ["students", "👤 Students"], ["settings", "⚙ Settings"]].map(([k, lbl]) => (
               <button key={k} style={s.pill(sidebar === k)} onClick={() => setSidebar(k)}>{lbl}</button>
@@ -1012,7 +958,6 @@ export default function SeatingChartApp() {
                     ))}
                   </>
                 )}
-                {/* Relationship controls */}
                 <div style={{ marginTop: 16, padding: 10, background: C.bg, borderRadius: 6, border: `1px solid ${C.borderLight}` }}>
                   <div style={{ ...s.sectionLabel, marginBottom: 6 }}>Mark Relationships</div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -1077,9 +1022,7 @@ export default function SeatingChartApp() {
           onMouseUp={onCanvasUp}
           onClick={() => { deselectAll(); if (placingStudentId && !dragState) { setPlacingStudentId(null); setPickedUpFromKey(null); } }}>
 
-          {/* Unified canvas top bar */}
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", padding: "8px 12px", gap: 6, zIndex: 55, pointerEvents: "none" }}>
-            {/* Left: room + zoom */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, pointerEvents: "auto" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, background: C.panel, padding: "4px 10px", borderRadius: 4, border: `1px solid ${C.borderLight}` }}>
                 🏫 {activeRoom?.name}
@@ -1092,13 +1035,11 @@ export default function SeatingChartApp() {
               </div>
             </div>
 
-            {/* Center: mode banners */}
             <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 6, pointerEvents: "auto" }}>
               {testDay && <div style={{ background: C.seatSep, color: "#fff", padding: "5px 16px", borderRadius: 6, fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>TEST DAY</div>}
               {disableSeatMode && <div style={{ background: C.danger, color: "#fff", padding: "5px 16px", borderRadius: 6, fontSize: 12, fontWeight: 700, letterSpacing: 0.5 }}>Click seats to disable/enable</div>}
             </div>
 
-            {/* Right: action buttons */}
             <div style={{ display: "flex", gap: 6, pointerEvents: "auto" }}>
               {undoStack.length > 0 && <button style={{ ...s.btn(false), fontWeight: 700 }} onClick={undo} title="Undo last seating change">↩ Undo</button>}
               <button style={s.btn(lockLayout, C.accent)} onClick={() => { setLockLayout(!lockLayout); if (!lockLayout) deselectAll(); }}>{lockLayout ? "🔒 Locked" : "🔓 Lock Layout"}</button>
@@ -1109,18 +1050,13 @@ export default function SeatingChartApp() {
             </div>
           </div>
 
-          {/* ══ ZOOM WRAPPER — all room content scales together ══ */}
           <div style={{ transform: `scale(${roomZoom})`, transformOrigin: "0 0", width: `${100 / roomZoom}%`, height: `${100 / roomZoom}%`, position: "relative" }}>
-
-            {/* Board */}
             <div style={boardSt}>Board</div>
 
-            {/* Relationship lines */}
             <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 15 }}>
               {relLines.map((l, i) => <line key={i} x1={l.x} y1={l.y} x2={l.x2} y2={l.y2} stroke={l.t === "f" ? C.friend : C.conflict} strokeWidth={2.5} strokeDasharray={l.t === "c" ? "6,4" : "none"} opacity={0.65} />)}
             </svg>
 
-            {/* Desks */}
             {desks.map(desk => {
               const sel = !lockLayout && selectedDeskIds.has(desk.id);
               return (
@@ -1175,9 +1111,8 @@ export default function SeatingChartApp() {
                 </div>
               );
             })}
-          </div>{/* end zoom wrapper */}
+          </div>
 
-          {/* Floating toolbar — outside zoom, positioned in screen coords */}
           {!disableSeatMode && !lockLayout && selectedDeskIds.size > 0 && (() => {
             const selDesks = desks.filter(d => selectedDeskIds.has(d.id));
             if (selDesks.length === 0) return null;
@@ -1187,7 +1122,6 @@ export default function SeatingChartApp() {
               centerX += d.x + d.w / 2;
             });
             centerX /= selDesks.length;
-            // Convert to screen coords via zoom
             const screenX = centerX * roomZoom;
             const screenY = topY * roomZoom - 44;
             return (
@@ -1206,7 +1140,6 @@ export default function SeatingChartApp() {
             );
           })()}
 
-          {/* Empty state */}
           {desks.length === 0 && (
             <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center", color: C.subtle }}>
               <div style={{ fontSize: 44, marginBottom: 8, opacity: 0.25 }}>⊞</div>
@@ -1215,12 +1148,10 @@ export default function SeatingChartApp() {
             </div>
           )}
 
-          {/* Placing indicator (sidebar place) */}
           {placingStudentId && !seatDrag && <div style={{ position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)", background: C.accent, color: "#fff", padding: "7px 18px", borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 55, boxShadow: "0 4px 12px rgba(0,0,0,.2)" }}>
             Click a seat to place {getStudent(placingStudentId)?.name} · <span style={{ opacity: 0.7, cursor: "pointer", textDecoration: "underline" }} onClick={e => { e.stopPropagation(); setPlacingStudentId(null); setPickedUpFromKey(null); }}>Cancel</span>
           </div>}
 
-          {/* Drag indicator — follows cursor */}
           {seatDrag && (() => {
             const st = getStudent(seatDrag.studentId);
             if (!st) return null;
@@ -1239,7 +1170,6 @@ export default function SeatingChartApp() {
             );
           })()}
 
-          {/* Separate setting panel */}
           {testDay && separateStudents.length > 0 && (
             <div style={{ position: "absolute", bottom: 14, right: 14, background: C.panel, border: `2px solid ${C.seatSep}`, borderRadius: 10, padding: "12px 16px", zIndex: 55, maxWidth: 220, boxShadow: "0 4px 14px rgba(0,0,0,.1)" }}>
               <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1.2, color: C.seatSep, marginBottom: 6 }}>📋 Separate Setting</div>
@@ -1256,7 +1186,6 @@ export default function SeatingChartApp() {
 
       {/* ─── MODALS ─── */}
 
-      {/* Add student */}
       {showAddStudent && (
         <div style={s.modal} onClick={() => setShowAddStudent(false)}>
           <div style={s.modalBox} onClick={e => e.stopPropagation()}>
@@ -1292,7 +1221,6 @@ export default function SeatingChartApp() {
         </div>
       )}
 
-      {/* Edit student */}
       {editStudentId && (() => {
         const st = getStudent(editStudentId);
         if (!st) return null;
@@ -1348,7 +1276,6 @@ export default function SeatingChartApp() {
                     <Btn onClick={() => { setPlacingStudentId(st.id); setPickedUpFromKey(null); setEditStudentId(null); }}>↗ Place in Seat</Btn>
                   ) : (
                     <Btn onClick={() => {
-                      // Unassign from current seat
                       const sa = { ...assignments };
                       Object.keys(sa).forEach(k => { if (sa[k] === st.id) delete sa[k]; });
                       updateActiveClass(c => ({ ...c, seatAssignments: sa }));
@@ -1362,7 +1289,6 @@ export default function SeatingChartApp() {
         );
       })()}
 
-      {/* Add class */}
       {showAddClass && (
         <div style={s.modal} onClick={() => setShowAddClass(false)}>
           <div style={s.modalBox} onClick={e => e.stopPropagation()}>
@@ -1405,7 +1331,6 @@ export default function SeatingChartApp() {
         </div>
       )}
 
-      {/* Edit class */}
       {editClassId && (() => {
         const cl = data.classes.find(c => c.id === editClassId);
         if (!cl) return null;
@@ -1452,7 +1377,6 @@ export default function SeatingChartApp() {
         );
       })()}
 
-      {/* Manage rooms */}
       {showManageRooms && (
         <div style={s.modal} onClick={() => setShowManageRooms(false)}>
           <div style={{ ...s.modalBox, width: 480 }} onClick={e => e.stopPropagation()}>
@@ -1493,7 +1417,6 @@ export default function SeatingChartApp() {
         </div>
       )}
 
-      {/* Template Bank */}
       {showTemplateBank && (
         <div style={s.modal} onClick={() => setShowTemplateBank(false)}>
           <div style={{ ...s.modalBox, width: 500 }} onClick={e => e.stopPropagation()}>
@@ -1531,7 +1454,6 @@ export default function SeatingChartApp() {
         </div>
       )}
 
-      {/* Print preview overlay */}
       {printHtml && (
         <div style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,.6)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
