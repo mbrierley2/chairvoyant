@@ -933,6 +933,7 @@ export default function SeatingChartApp() {
           <span style={{ fontSize: 12, color: C.muted, fontFamily: sansFont, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.user_metadata?.full_name || user.email}</span>
           <button onClick={() => supabase.auth.signOut()} style={{ ...s.btn(false), fontSize: 11, padding: "4px 10px" }}>Sign out</button>
         </div>
+      </div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* ─── SIDEBAR ─── */}
