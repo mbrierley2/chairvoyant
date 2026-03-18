@@ -465,12 +465,28 @@ export default function SeatingChartApp() {
 
   /* u2500u2500u2500u2500 Supabase cloud save u2500u2500u2500u2500 */
   const saveChart = async () => {
-    const { data: result, error } = await supabase
-      .from("seating_charts")
-      .insert([{ name: activeClass?.name || "My Classroom", chart_data: desks, user_id: user.id }]);
-    if (error) { alert("Error saving: " + error.message); }
-    else { alert("Chart saved to the cloud!"); }
-  };
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { data, error } = await supabase
+      .from('seating_charts')
+      .upsert([
+        { 
+          // This "id" or "user_id" tells Supabase: 
+          // "If this user already has a chart, just overwrite it!"
+          user_id: user.id, 
+          name: 'My Classroom', 
+          chart_data: desks 
+        },
+      ], { onConflict: 'user_id' }); // This line is the magic fix
+
+    if (error) throw error;
+    alert('✅ Chart updated in the cloud!');
+  } catch (error) {
+    console.error('Error saving:', error);
+    alert('❌ Error saving: ' + error.message);
+  }
+};
 
   /* ──── Print-friendly export ──── */
   const printChart = () => {
