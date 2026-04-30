@@ -605,46 +605,76 @@ export default function SeatingChartApp() {
       : "";
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${activeClass.period} ${activeClass.name} — Chairvoyant</title>
-    <style>
-      * { box-sizing: border-box; }
-      @media print {
-        body { margin: 0; }
-        .no-print { display: none !important; }
-        @page { size: landscape; margin: 0.5in; }
-      }
-      body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #222; padding: 20px; max-width: 1100px; margin: 0 auto; }
-    </style></head><body>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #2f4f3a;padding-bottom:8px;margin-bottom:16px">
-        <div>
-          <h1 style="margin:0;font-size:20px;color:#2f4f3a">⊞ ${activeClass.name}</h1>
-          <div style="font-size:12px;color:#888;margin-top:2px">${activeClass.period} · ${activeRoom.name}${testDay ? " · TEST DAY" : ""} · ${students.length} students</div>
-        </div>
-        <button class="no-print" onclick="window.print()" style="padding:8px 20px;background:#2f4f3a;color:#fff;border:none;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer">🖨 Print</button>
-      </div>
+<style>
+  * {
+    box-sizing: border-box;
+  }
 
-      <div style="display:flex;gap:8px;margin-bottom:10px;font-size:10px;color:#666">
-        <span>● <span style="color:#4a7c59">■</span> Assigned</span>
-        <span>● <span style="color:#c27a2a">■</span> IEP ★</span>
-        <span>● ↑ Front seating</span>
-        <span>● <span style="color:#8b5fbf">■</span> Separate Setting</span>
-        <span>● <span style="color:#ccc">■</span> Disabled</span>
-        ${showRels ? `<span>● <span style="color:#2e86c1">—</span> Friends</span><span>● <span style="color:#cb3b3b">- -</span> Conflict</span>` : ""}
-      </div>
+  @page {
+    size: landscape;
+    margin: 0.2in;
+  }
 
-      <svg viewBox="0 0 ${vw} ${vh}" style="width:100%;max-height:55vh;border:1px solid #ddd;border-radius:6px;background:#fafaf7;margin-bottom:16px">
-        ${boardSvg}
-        ${relSvg}
-        ${desksSvg}
-        ${seatsSvg}
-      </svg>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
 
-      <h3 style="font-size:14px;margin:16px 0 6px;color:#2f4f3a">Class Roster</h3>
-      <table style="border-collapse:collapse;width:100%">
-        <thead><tr style="background:#eee"><th style="padding:4px 8px;text-align:left;font-size:10px;border-bottom:2px solid #999">Name</th><th style="padding:4px 8px;text-align:left;font-size:10px;border-bottom:2px solid #999">Tags</th><th style="padding:4px 8px;text-align:left;font-size:10px;border-bottom:2px solid #999">Accommodations</th><th style="padding:4px 8px;text-align:left;font-size:10px;border-bottom:2px solid #999">Location</th></tr></thead>
-        <tbody>${rosterRows}</tbody>
-      </table>
-      ${sepList}
-    </body></html>`;
+  .print-page {
+    width: 100vw;
+    height: 100vh;
+    padding: 0.05in;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  svg {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    background: white;
+    border: none;
+  }
+
+  text {
+    paint-order: stroke;
+    stroke: white;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  @media print {
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .print-page {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+  }
+</style>
+</head><body>
+  <div class="print-page">
+    <svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet">
+      ${boardSvg}
+      ${desksSvg}
+      ${seatsSvg
+        .replaceAll('font-size="10"', 'font-size="16"')
+        .replaceAll('font-size="8"', 'font-size="14"')
+        .replaceAll('r="15"', 'r="19"')}
+    </svg>
+  </div>
+</body></html>`;
 
     setPrintHtml(html);
   };
